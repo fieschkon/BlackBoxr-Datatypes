@@ -1,5 +1,8 @@
 import setuptools
 
+with open('requirements.txt') as f:
+    required = f.read().splitlines()
+
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
@@ -17,5 +20,5 @@ setuptools.setup(
     },
     license='MIT',
     packages=['BBData'],
-    install_requires=['requests'],
+    install_requires=required,
 )
