@@ -1,6 +1,7 @@
 
 import json
-from BBData.BBData import Delegate, CollectionElement
+from BBData.BBData import CollectionElement
+from BBData.Delegate import Delegate
 
 
 class TestDelegate:

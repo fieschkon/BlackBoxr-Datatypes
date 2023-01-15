@@ -1,38 +1,13 @@
 from abc import abstractmethod
 import copy
 from datetime import datetime
+from BBData.Delegate import Delegate
 from dictdiffer import diff
 import json
 from typing import Callable
 import uuid
 import warnings
 
-class Delegate():
-
-    def __init__(self) -> None:
-        self.subscribers = []
-    
-    def connect(self, function : Callable):
-        '''
-        Connect function handle to delegate.
-
-        Args:
-            function (Callable): The handle for the method to be executed. Must handle *args.
-        '''
-        self.subscribers.append(function)
-
-    def disconnect(self, function : Callable):
-        '''
-        Disconnects function handle from delegate.
-
-        Args:
-            function (Callable): The handle to be disconnected from the delegate.
-        '''
-        self.subscribers.remove(function)
-
-    def emit(self, *args):
-        for function in self.subscribers:
-            function(args)
 
 class CollectionElement():
 
@@ -185,3 +160,6 @@ class CollectionElement():
 class System(CollectionElement):
     def __init__(self) -> None:
         super().__init__()
+        self.DL = []
+        self.RL = []
+        self.TE = []
