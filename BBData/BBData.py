@@ -158,7 +158,7 @@ class CollectionElement():
             return str(self) == __o
         else: return False
 
-class ItemDefinitionCollection(CollectionElement):
+class ItemDefinition(CollectionElement):
 
     @staticmethod
     def fromDict(inDict : dict):
@@ -171,7 +171,7 @@ class ItemDefinitionCollection(CollectionElement):
         Returns:
             ItemDefinitionCollection: Item Collection
         '''
-        e = ItemDefinitionCollection()
+        e = ItemDefinition()
 
         # Identifiers 
         e.uuid = inDict['uuid']
@@ -186,61 +186,41 @@ class ItemDefinitionCollection(CollectionElement):
 
         e.name = inDict['name']
 
-        mapping = [('requirements', e.requirements), ('designelements', e.designelements), ('testitems', e.testitems)]
-
-        for map in mapping:
-
-            for element in inDict[map[0]]:
-                match element['type']:
-                    case FieldType.NONE:
-                        element = Field.fromDict(element)
-                    case FieldType.LINETEXT:
-                        element = ShortText.fromDict(element)
-                    case FieldType.LONGTEXT:
-                        element = LongText.fromDict(element)
-                    case FieldType.RADIO:
-                        element = Radio.fromDict(element)
-                    case FieldType.CHECKS:
-                        element = Checks.fromDict(element)
-                map[1].append(element)
+        for element in inDict['fields']:
+            match element['type']:
+                case FieldType.NONE:
+                    element = Field.fromDict(element)
+                case FieldType.LINETEXT:
+                    element = ShortText.fromDict(element)
+                case FieldType.LONGTEXT:
+                    element = LongText.fromDict(element)
+                case FieldType.RADIO:
+                    element = Radio.fromDict(element)
+                case FieldType.CHECKS:
+                    element = Checks.fromDict(element)
+            e.fields.append(element)
 
         return e
 
-    def __init__(self, name : str = "Item Definitions", requirements : list[Field] = [], designelements : list[Field] = [], testitems : list[Field] = []) -> None:
+    def __init__(self, name : str = "Item Definition", fields : list[Field] = []) -> None:
         super().__init__()
         self.name = name
-        self.requirements : list[Field] = requirements
-        self.designelements : list[Field] = designelements
-        self.testitems : list[Field] = testitems
+        self.fields : list[Field] = fields
 
     def toDict(self) -> dict:
         based = super().toDict()
         based['name'] = self.name
-        based['requirements'] = [d.toDict() for d in self.requirements]     
-        based['designelements'] = [d.toDict() for d in self.designelements] 
-        based['testitems'] = [d.toDict() for d in self.testitems]           
+        based['fields'] = [d.toDict() for d in self.fields]     
         return based
 
-    def addRequirement(self, field : Field):
-        self.requirements.append(field)
+    def addField(self, field : Field):
+        self.fields.append(field)
     
-    def addRequirements(self, fields : list[Field]):
-        self.requirements += fields
-
-    def addDesignElement(self, field : Field):
-        self.designelements.append(field)
-    
-    def addDesignElements(self, fields : list[Field]):
-        self.designelements += fields
-
-    def addTestitem(self, field : Field):
-        self.testitems.append(field)
-    
-    def addTestitems(self, fields : list[Field]):
-        self.testitems += fields
+    def addFields(self, fields : list[Field]):
+        self.fields += fields
 
     def __eq__(self, __o: object) -> bool:
-        if isinstance(__o, ItemDefinitionCollection):
+        if isinstance(__o, ItemDefinition):
             return __o.toDict() == self.toDict()
         return super().__eq__(__o)
 
@@ -249,6 +229,74 @@ class ItemDefinitionCollection(CollectionElement):
 
     def __repr__(self) -> str:
         return self.uuid
+
+class ItemTypeCollection(CollectionElement):
+
+    @staticmethod
+    def fromDict(inDict : dict):
+        e = ItemTypeCollection(name=inDict['name'])
+        # Identifiers 
+        e.uuid = inDict['uuid']
+        
+        # Fields are used to denote public and private fields 
+        e.public = inDict['public']
+        e.private = inDict['private']
+
+        # Time tracking 
+        e.createDate = inDict['createDate']
+        e.updateDate = inDict['updateDate']
+
+        e.name = inDict['name']
+
+        mapping = [('requirements', e.requirements), ('designelements', e.designelements), ('testitems', e.testitems)]
+        for mp in mapping:
+            for itemtype in inDict[mp[0]]:
+                mp[1].append(ItemDefinition.fromDict(itemtype))
+        return e
+
+    def __init__(self, name : str = "Item Definition Collection") -> None:
+        super().__init__()
+        self.name = name
+
+        self.requirementAdded = Delegate()
+        self.designelementAdded = Delegate()
+        self.testitemAdded = Delegate()
+
+        self.requirements : list[ItemDefinition] = []
+        self.designelements : list[ItemDefinition] = []
+        self.testitems : list[ItemDefinition] = []
+
+    def toDict(self) -> dict:
+        based = super().toDict()
+        based['name'] = self.name
+        based['requirements'] = [d.toDict() for d in self.requirements]
+        based['designelements'] = [d.toDict() for d in self.designelements]    
+        based['testitems'] = [d.toDict() for d in self.testitems]    
+        return based
+
+    def addRequirement(self, requirement : ItemDefinition):
+        self.requirements.append(requirement)
+        self.requirementAdded.emit(requirement)
+    
+    def addRequirements(self, requirements : list[ItemDefinition]):
+        for i in requirements:
+            self.addRequirement(i)
+
+    def addDesignElement(self, designelement : ItemDefinition):
+        self.designelements.append(designelement)
+        self.designelementAdded.emit(designelement)
+   
+    def addDesignElements(self, designelements : list[ItemDefinition]):
+        for i in designelements:
+            self.addDesignElement(i)
+
+    def addTestItem(self, testitem : ItemDefinition):
+        self.testitems.append(testitem)
+        self.testitemAdded.emit(testitem)
+
+    def addTestItems(self, testitems : list[ItemDefinition]):
+        for i in testitems:
+            self.addTestItem(i)
 
 class System(CollectionElement):
     def __init__(self) -> None:
