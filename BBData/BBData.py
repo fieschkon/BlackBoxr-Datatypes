@@ -2,6 +2,7 @@ from abc import abstractmethod
 import copy
 from datetime import datetime
 from BBData.Delegate import Delegate
+from BBData.Fields import Checks, Field, FieldType, LongText, Radio, ShortText
 from dictdiffer import diff
 import json
 from typing import Callable
@@ -39,7 +40,7 @@ class CollectionElement():
         e = CollectionElement()
 
         # Identifiers 
-        e.uuid = uuid.UUID(inDict['uuid'])
+        e.uuid = inDict['uuid']
         
         # Fields are used to denote public and private fields 
         e.public = inDict['public']
@@ -156,6 +157,77 @@ class CollectionElement():
             warnings.warn("Warning: instance {} is str, not Element.".format(__o))
             return str(self) == __o
         else: return False
+
+class ItemDefinitionCollection(CollectionElement):
+
+    @staticmethod
+    def fromDict(inDict : dict):
+        '''
+        Creates ItemDefinitionCollection from dict
+
+        Args:
+            inDict (dict): Dictionary to parse
+
+        Returns:
+            ItemDefinitionCollection: Item Collection
+        '''
+        e = ItemDefinitionCollection()
+
+        # Identifiers 
+        e.uuid = inDict['uuid']
+        
+        # Fields are used to denote public and private fields 
+        e.public = inDict['public']
+        e.private = inDict['private']
+
+        # Time tracking 
+        e.createDate = inDict['createDate']
+        e.updateDate = inDict['updateDate']
+
+        e.name = inDict['name']
+        for field in inDict['fields']:
+            match field['type']:
+                case FieldType.NONE:
+                    field = Field.fromDict(field)
+                case FieldType.LINETEXT:
+                    field = ShortText.fromDict(field)
+                case FieldType.LONGTEXT:
+                    field = LongText.fromDict(field)
+                case FieldType.RADIO:
+                    field = Radio.fromDict(field)
+                case FieldType.CHECKS:
+                    field = Checks.fromDict(field)
+            e.fields.append(field)
+
+        return e
+
+    def __init__(self, name : str = "Item Definitions", fields : list[Field] = []) -> None:
+        super().__init__()
+        self.name = name
+        self.fields : list[Field] = fields
+
+    def toDict(self) -> dict:
+        based = super().toDict()
+        based['name'] = self.name
+        based['fields'] = [d.toDict() for d in self.fields]
+        return based
+
+    def addItem(self, field : Field):
+        self.fields.append(field)
+    
+    def addItems(self, fields : list[Field]):
+        self.fields += fields
+
+    def __eq__(self, __o: object) -> bool:
+        if isinstance(__o, ItemDefinitionCollection):
+            return __o.toDict() == self.toDict()
+        return super().__eq__(__o)
+
+    def __str__(self) -> str:
+        return json.dumps(self.toDict())
+
+    def __repr__(self) -> str:
+        return self.uuid
 
 class System(CollectionElement):
     def __init__(self) -> None:

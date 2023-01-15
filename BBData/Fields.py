@@ -13,6 +13,9 @@ class FieldType(Enum):
 
 class Field():
 
+    def fromDict(indict : dict):
+        return Field(fieldname = indict['name'])
+
     def __init__(self, fieldname : str = 'Default Field Name') -> None:
         self.name = fieldname
 
@@ -22,7 +25,17 @@ class Field():
         d['type'] = FieldType.NONE
         return copy.deepcopy(d)
 
+    def __eq__(self, __o: object) -> bool:
+        if isinstance(__o, Field):
+            return self.toDict() == __o.toDict()
+        return False
+
 class Checks(Field):
+
+    def fromDict(indict: dict):
+        c = Checks(indict['name'])
+        c.options = indict['options']
+
     def __init__(self, options : list[tuple[int, str, bool]], fieldname : str = 'Default Checkbox Field') -> None:
         super().__init__(fieldname)
         self.stateChanged = Delegate()
@@ -42,6 +55,12 @@ class Checks(Field):
         return d
 
 class Radio(Checks):
+
+    def fromDict(indict: dict):
+        c = Radio(indict['name'])
+        c.options = indict['options']
+        c.maxAllowed = indict['maxallowed']
+
     def __init__(self, options: list[tuple[int, str, bool]], maximumAllowedChecks = 1 , fieldname: str = 'Default Checkbox Field') -> None:
         super().__init__(options, fieldname)
         if maximumAllowedChecks == -1:
@@ -60,10 +79,15 @@ class Radio(Checks):
     def toDict(self):
         d = super().toDict()
         d['type'] = FieldType.RADIO
+        d['maxallowed'] = self.maxAllowed
         return d
 
 
 class ShortText(Field):
+
+    def fromDict(indict: dict):
+        return ShortText(fieldname=indict['name'], defaultText=indict['text'])
+
     def __init__(self, fieldname: str = 'Default ShortText Name', defaultText = '') -> None:
         super().__init__(fieldname)
         self.text = defaultText
@@ -75,6 +99,10 @@ class ShortText(Field):
         return d
 
 class LongText(ShortText):
+
+    def fromDict(indict: dict):
+        return LongText(fieldname=indict['name'], defaultText=indict['text'])
+
     def __init__(self, fieldname: str = 'Default LongText Name', defaultText='') -> None:
         super().__init__(fieldname, defaultText)
     
