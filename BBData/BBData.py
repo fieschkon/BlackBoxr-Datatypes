@@ -1,11 +1,11 @@
 from abc import abstractmethod
+import copy
 from datetime import datetime
-import difflib
+from dictdiffer import diff
 import json
 from typing import Callable
 import uuid
 import warnings
-
 
 class Delegate():
 
@@ -14,7 +14,7 @@ class Delegate():
     
     def connect(self, function : Callable):
         '''
-        connect Connect function handle to delegate.
+        Connect function handle to delegate.
 
         Args:
             function (Callable): The handle for the method to be executed. Must handle *args.
@@ -23,7 +23,7 @@ class Delegate():
 
     def disconnect(self, function : Callable):
         '''
-        disconnect Disconnects function handle from delegate.
+        Disconnects function handle from delegate.
 
         Args:
             function (Callable): The handle to be disconnected from the delegate.
@@ -39,7 +39,7 @@ class CollectionElement():
     @staticmethod
     def diff(elementA, elementB):
         '''
-        diff Diff elements
+        Diff elements
 
         Args:
             elementA (CollectionElement): Original Element
@@ -48,12 +48,12 @@ class CollectionElement():
         Returns:
             list: List of changes
         '''
-        return list(difflib(elementA.toDict(), elementB.toDict()))
+        return list(diff(elementA.toDict(), elementB.toDict()))
 
     @staticmethod
     def fromDict(inDict : dict):
         '''
-        fromDict Creates Collection Element from dict
+        Creates Collection Element from dict
 
         Args:
             inDict (dict): Dictionary to parse
@@ -79,7 +79,7 @@ class CollectionElement():
     @staticmethod
     def fromStr(inStr : str):
         '''
-        fromStr Creates Collection Element from str
+        Creates Collection Element from str
 
         Args:
             inStr (str): Input String
@@ -87,12 +87,12 @@ class CollectionElement():
         Returns:
             CollectionElement: Element
         '''
-        return CollectionElement.fromDict(json.loads(str))
+        return CollectionElement.fromDict(json.loads(inStr))
 
     @staticmethod
     def copy(element):
         '''
-        copy Create a copy of an element
+        Create a copy of an element
 
         Args:
             element (CollectionElement): Element to copy
@@ -100,12 +100,14 @@ class CollectionElement():
         Returns:
             CollectionElement: Copied Element
         '''
-        return CollectionElement.fromDict(element.toDict())
+        e = CollectionElement.fromDict(element.toDict())
+        e.uuid = str(uuid.uuid4())
+        return copy.deepcopy(e)
 
     def __init__(self) -> None:
 
         # Identifiers 
-        self.uuid = uuid.uuid4()
+        self.uuid = str(uuid.uuid4())
         
         # Fields are used to denote public and private fields 
         self.public = {}
@@ -118,9 +120,23 @@ class CollectionElement():
         # Delegate
         self.anyAttributeChanged = Delegate()
 
+    def setPublicValue(self, key, value):
+        self.public[key] = value
+        self.anyAttributeChanged.emit('public', (key, value))
+
+    def getPublicValue(self, key):
+        return self.public.get(key)
+
+    def getPrivateValue(self, key):
+        return self.private.get(key)
+
+    def setPrivateValue(self, key, value):
+        self.private[key] = value
+        self.anyAttributeChanged.emit('private', (key, value))
+
     def generateCreateTime(self):
         '''
-        generateCreateTime Generate the current time
+        Generate the current time
 
         Returns:
             str: Current Time
@@ -129,7 +145,7 @@ class CollectionElement():
 
     def toDict(self) -> dict:
         '''
-        toDict Serialize to dict
+        Serialize to dict
 
         Returns:
             dict: serialized dict
@@ -164,6 +180,8 @@ class CollectionElement():
         elif isinstance(__o, str):
             warnings.warn("Warning: instance {} is str, not Element.".format(__o))
             return str(self) == __o
+        else: return False
 
-    def __hash__(self) -> int:
-        return hash(tuple(sorted(self.toDict())))
+class System(CollectionElement):
+    def __init__(self) -> None:
+        super().__init__()
