@@ -5,6 +5,9 @@ from BBData.Delegate import Delegate
 
 
 class FieldType(Enum):
+    '''
+    FieldType for interpreting serialization
+    '''
     NONE = 0
     LINETEXT = 1
     LONGTEXT = 2
@@ -33,13 +36,17 @@ class Field():
 class Checks(Field):
 
     def fromDict(indict: dict):
-        c = Checks(indict['name'])
+        c = Checks([], fieldname = indict['name'])
         c.options = indict['options']
+        return c
 
     def __init__(self, options : list[tuple[int, str, bool]], fieldname : str = 'Default Checkbox Field') -> None:
         super().__init__(fieldname)
         self.stateChanged = Delegate()
-        self.options = {tup[0] : {'name' : tup[1] , 'state' : tup[2]} for tup in options}
+        if isinstance(options, dict):
+            self.options = options
+        else:
+            self.options = {tup[0] : {'name' : tup[1] , 'state' : tup[2]} for tup in options}
 
     def setOption(self, index : int, state : bool):
         self.options[index]['state'] = state
@@ -57,9 +64,10 @@ class Checks(Field):
 class Radio(Checks):
 
     def fromDict(indict: dict):
-        c = Radio(indict['name'])
+        c = Radio([], fieldname = indict['name'])
         c.options = indict['options']
         c.maxAllowed = indict['maxallowed']
+        return c
 
     def __init__(self, options: list[tuple[int, str, bool]], maximumAllowedChecks = 1 , fieldname: str = 'Default Checkbox Field') -> None:
         super().__init__(options, fieldname)

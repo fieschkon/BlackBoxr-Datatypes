@@ -185,38 +185,59 @@ class ItemDefinitionCollection(CollectionElement):
         e.updateDate = inDict['updateDate']
 
         e.name = inDict['name']
-        for field in inDict['fields']:
-            match field['type']:
-                case FieldType.NONE:
-                    field = Field.fromDict(field)
-                case FieldType.LINETEXT:
-                    field = ShortText.fromDict(field)
-                case FieldType.LONGTEXT:
-                    field = LongText.fromDict(field)
-                case FieldType.RADIO:
-                    field = Radio.fromDict(field)
-                case FieldType.CHECKS:
-                    field = Checks.fromDict(field)
-            e.fields.append(field)
+
+        mapping = [('requirements', e.requirements), ('designelements', e.designelements), ('testitems', e.testitems)]
+
+        for map in mapping:
+
+            for element in inDict[map[0]]:
+                match element['type']:
+                    case FieldType.NONE:
+                        element = Field.fromDict(element)
+                    case FieldType.LINETEXT:
+                        element = ShortText.fromDict(element)
+                    case FieldType.LONGTEXT:
+                        element = LongText.fromDict(element)
+                    case FieldType.RADIO:
+                        element = Radio.fromDict(element)
+                    case FieldType.CHECKS:
+                        element = Checks.fromDict(element)
+                map[1].append(element)
 
         return e
 
-    def __init__(self, name : str = "Item Definitions", fields : list[Field] = []) -> None:
+    def __init__(self, name : str = "Item Definitions", requirements : list[Field] = [], designelements : list[Field] = [], testitems : list[Field] = []) -> None:
         super().__init__()
         self.name = name
-        self.fields : list[Field] = fields
+        self.requirements : list[Field] = requirements
+        self.designelements : list[Field] = designelements
+        self.testitems : list[Field] = testitems
 
     def toDict(self) -> dict:
         based = super().toDict()
         based['name'] = self.name
-        based['fields'] = [d.toDict() for d in self.fields]
+        based['requirements'] = [d.toDict() for d in self.requirements]     
+        based['designelements'] = [d.toDict() for d in self.designelements] 
+        based['testitems'] = [d.toDict() for d in self.testitems]           
         return based
 
-    def addItem(self, field : Field):
-        self.fields.append(field)
+    def addRequirement(self, field : Field):
+        self.requirements.append(field)
     
-    def addItems(self, fields : list[Field]):
-        self.fields += fields
+    def addRequirements(self, fields : list[Field]):
+        self.requirements += fields
+
+    def addDesignElement(self, field : Field):
+        self.designelements.append(field)
+    
+    def addDesignElements(self, fields : list[Field]):
+        self.designelements += fields
+
+    def addTestitem(self, field : Field):
+        self.testitems.append(field)
+    
+    def addTestitems(self, fields : list[Field]):
+        self.testitems += fields
 
     def __eq__(self, __o: object) -> bool:
         if isinstance(__o, ItemDefinitionCollection):
