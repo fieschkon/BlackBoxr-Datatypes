@@ -11,3 +11,5 @@ Bbdata
 ## Modules
 
 - [Bbdata](./BBData.md)
+- [Delegate](./Delegate.md)
+- [Fields](./Fields.md)

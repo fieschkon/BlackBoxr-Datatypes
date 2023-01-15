@@ -13,15 +13,30 @@ Bbdata
     - [CollectionElement.fromDict](#collectionelementfromdict)
     - [CollectionElement.fromStr](#collectionelementfromstr)
     - [CollectionElement().generateCreateTime](#collectionelement()generatecreatetime)
+    - [CollectionElement().getPrivateValue](#collectionelement()getprivatevalue)
+    - [CollectionElement().getPublicValue](#collectionelement()getpublicvalue)
+    - [CollectionElement().setPrivateValue](#collectionelement()setprivatevalue)
+    - [CollectionElement().setPublicValue](#collectionelement()setpublicvalue)
     - [CollectionElement().toDict](#collectionelement()todict)
-  - [Delegate](#delegate)
-    - [Delegate().connect](#delegate()connect)
-    - [Delegate().disconnect](#delegate()disconnect)
-    - [Delegate().emit](#delegate()emit)
+  - [ItemDefinition](#itemdefinition)
+    - [ItemDefinition().addField](#itemdefinition()addfield)
+    - [ItemDefinition().addFields](#itemdefinition()addfields)
+    - [ItemDefinition.fromDict](#itemdefinitionfromdict)
+    - [ItemDefinition().toDict](#itemdefinition()todict)
+  - [ItemTypeCollection](#itemtypecollection)
+    - [ItemTypeCollection().addDesignElement](#itemtypecollection()adddesignelement)
+    - [ItemTypeCollection().addDesignElements](#itemtypecollection()adddesignelements)
+    - [ItemTypeCollection().addRequirement](#itemtypecollection()addrequirement)
+    - [ItemTypeCollection().addRequirements](#itemtypecollection()addrequirements)
+    - [ItemTypeCollection().addTestItem](#itemtypecollection()addtestitem)
+    - [ItemTypeCollection().addTestItems](#itemtypecollection()addtestitems)
+    - [ItemTypeCollection.fromDict](#itemtypecollectionfromdict)
+    - [ItemTypeCollection().toDict](#itemtypecollection()todict)
+  - [System](#system)
 
 ## CollectionElement
 
-[Show source in BBData.py:37](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L37)
+[Show source in BBData.py:13](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L13)
 
 #### Signature
 
@@ -33,9 +48,9 @@ class CollectionElement:
 
 ### CollectionElement.copy
 
-[Show source in BBData.py:92](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L92)
+[Show source in BBData.py:68](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L68)
 
-copy Create a copy of an element
+Create a copy of an element
 
 #### Arguments
 
@@ -55,9 +70,9 @@ def copy(element):
 
 ### CollectionElement.diff
 
-[Show source in BBData.py:39](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L39)
+[Show source in BBData.py:15](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L15)
 
-diff Diff elements
+Diff elements
 
 #### Arguments
 
@@ -78,9 +93,9 @@ def diff(elementA, elementB):
 
 ### CollectionElement.fromDict
 
-[Show source in BBData.py:53](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L53)
+[Show source in BBData.py:29](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L29)
 
-fromDict Creates Collection Element from dict
+Creates Collection Element from dict
 
 #### Arguments
 
@@ -100,9 +115,9 @@ def fromDict(inDict: dict):
 
 ### CollectionElement.fromStr
 
-[Show source in BBData.py:79](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L79)
+[Show source in BBData.py:55](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L55)
 
-fromStr Creates Collection Element from str
+Creates Collection Element from str
 
 #### Arguments
 
@@ -122,9 +137,9 @@ def fromStr(inStr: str):
 
 ### CollectionElement().generateCreateTime
 
-[Show source in BBData.py:121](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L121)
+[Show source in BBData.py:113](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L113)
 
-generateCreateTime Generate the current time
+Generate the current time
 
 #### Returns
 
@@ -137,11 +152,55 @@ def generateCreateTime(self):
     ...
 ```
 
+### CollectionElement().getPrivateValue
+
+[Show source in BBData.py:106](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L106)
+
+#### Signature
+
+```python
+def getPrivateValue(self, key):
+    ...
+```
+
+### CollectionElement().getPublicValue
+
+[Show source in BBData.py:103](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L103)
+
+#### Signature
+
+```python
+def getPublicValue(self, key):
+    ...
+```
+
+### CollectionElement().setPrivateValue
+
+[Show source in BBData.py:109](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L109)
+
+#### Signature
+
+```python
+def setPrivateValue(self, key, value):
+    ...
+```
+
+### CollectionElement().setPublicValue
+
+[Show source in BBData.py:99](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L99)
+
+#### Signature
+
+```python
+def setPublicValue(self, key, value):
+    ...
+```
+
 ### CollectionElement().toDict
 
-[Show source in BBData.py:130](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L130)
+[Show source in BBData.py:122](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L122)
 
-toDict Serialize to dict
+Serialize to dict
 
 #### Returns
 
@@ -156,61 +215,307 @@ def toDict(self) -> dict:
 
 
 
-## Delegate
+## ItemDefinition
 
-[Show source in BBData.py:10](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L10)
+[Show source in BBData.py:161](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L161)
+
+Defines an item to be displayed in panels and on the canvas. Contains fields that change how input is taken from the user.
 
 #### Signature
 
 ```python
-class Delegate:
+class ItemDefinition(CollectionElement):
+    def __init__(self, name: str = "Item Definition", fields: list[Field] = []) -> None:
+        ...
+```
+
+#### See also
+
+- [CollectionElement](#collectionelement)
+- [Field](./Fields.md#field)
+
+### ItemDefinition().addField
+
+[Show source in BBData.py:231](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L231)
+
+Adds a field to the item definition
+
+#### Arguments
+
+- `field` *Field* - Field to add
+
+#### Signature
+
+```python
+def addField(self, field: Field):
+    ...
+```
+
+#### See also
+
+- [Field](./Fields.md#field)
+
+### ItemDefinition().addFields
+
+[Show source in BBData.py:240](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L240)
+
+Adds a list of fields to the item definition.
+
+#### Arguments
+
+- `fields` *list[Field]* - Fields to add
+
+#### Signature
+
+```python
+def addFields(self, fields: list[Field]):
+    ...
+```
+
+#### See also
+
+- [Field](./Fields.md#field)
+
+### ItemDefinition.fromDict
+
+[Show source in BBData.py:165](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L165)
+
+Creates ItemDefinitionCollection from dict
+
+#### Arguments
+
+- `inDict` *dict* - Dictionary to parse
+
+#### Returns
+
+- `ItemDefinitionCollection` - Item Collection
+
+#### Signature
+
+```python
+@staticmethod
+def fromDict(inDict: dict):
+    ...
+```
+
+### ItemDefinition().toDict
+
+[Show source in BBData.py:219](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L219)
+
+Serializes Item Definition to dict
+
+#### Returns
+
+- `dict` - output dictionary
+
+#### Signature
+
+```python
+def toDict(self) -> dict:
+    ...
+```
+
+
+
+## ItemTypeCollection
+
+[Show source in BBData.py:260](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L260)
+
+Collection of item types to be used inside systems and standards collections.
+
+#### Signature
+
+```python
+class ItemTypeCollection(CollectionElement):
+    def __init__(self, name: str = "Item Definition Collection") -> None:
+        ...
+```
+
+#### See also
+
+- [CollectionElement](#collectionelement)
+
+### ItemTypeCollection().addDesignElement
+
+[Show source in BBData.py:347](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L347)
+
+Adds a single design element definition
+
+#### Arguments
+
+- `designelement` *ItemDefinition* - Design element to add
+
+#### Signature
+
+```python
+def addDesignElement(self, designelement: ItemDefinition):
+    ...
+```
+
+#### See also
+
+- [ItemDefinition](#itemdefinition)
+
+### ItemTypeCollection().addDesignElements
+
+[Show source in BBData.py:357](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L357)
+
+Adds multiple design element definitions
+
+#### Arguments
+
+- `designelements` *list[ItemDefinition]* - Design elements to add
+
+#### Signature
+
+```python
+def addDesignElements(self, designelements: list[ItemDefinition]):
+    ...
+```
+
+#### See also
+
+- [ItemDefinition](#itemdefinition)
+
+### ItemTypeCollection().addRequirement
+
+[Show source in BBData.py:327](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L327)
+
+Adds a single requirement
+
+#### Arguments
+
+- `requirement` *ItemDefinition* - Requirement type to add
+
+#### Signature
+
+```python
+def addRequirement(self, requirement: ItemDefinition):
+    ...
+```
+
+#### See also
+
+- [ItemDefinition](#itemdefinition)
+
+### ItemTypeCollection().addRequirements
+
+[Show source in BBData.py:337](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L337)
+
+Adds multiple requirements
+
+#### Arguments
+
+- `requirements` *list[ItemDefinition]* - Requirement types to add
+
+#### Signature
+
+```python
+def addRequirements(self, requirements: list[ItemDefinition]):
+    ...
+```
+
+#### See also
+
+- [ItemDefinition](#itemdefinition)
+
+### ItemTypeCollection().addTestItem
+
+[Show source in BBData.py:367](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L367)
+
+Adds a test item definition
+
+#### Arguments
+
+- `testitem` *ItemDefinition* - Test item
+
+#### Signature
+
+```python
+def addTestItem(self, testitem: ItemDefinition):
+    ...
+```
+
+#### See also
+
+- [ItemDefinition](#itemdefinition)
+
+### ItemTypeCollection().addTestItems
+
+[Show source in BBData.py:377](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L377)
+
+Adds multiple test item definitions
+
+#### Arguments
+
+- `testitems` *list[ItemDefinition]* - Definitions to add
+
+#### Signature
+
+```python
+def addTestItems(self, testitems: list[ItemDefinition]):
+    ...
+```
+
+#### See also
+
+- [ItemDefinition](#itemdefinition)
+
+### ItemTypeCollection.fromDict
+
+[Show source in BBData.py:264](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L264)
+
+Create ItemTypeCollection from dictionary.
+
+#### Arguments
+
+- `inDict` *dict* - input dictionary
+
+#### Returns
+
+- [ItemTypeCollection](#itemtypecollection) - ItemTypeCollection
+
+#### Signature
+
+```python
+@staticmethod
+def fromDict(inDict: dict):
+    ...
+```
+
+### ItemTypeCollection().toDict
+
+[Show source in BBData.py:313](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L313)
+
+Serializes ItemTypeCollection to dict
+
+#### Returns
+
+- `dict` - output dict
+
+#### Signature
+
+```python
+def toDict(self) -> dict:
+    ...
+```
+
+
+
+## System
+
+[Show source in BBData.py:387](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L387)
+
+#### Signature
+
+```python
+class System(CollectionElement):
     def __init__(self) -> None:
         ...
 ```
 
-### Delegate().connect
+#### See also
 
-[Show source in BBData.py:15](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L15)
-
-connect Connect function handle to delegate.
-
-#### Arguments
-
-- `function` *Callable* - The handle for the method to be executed. Must handle *args.
-
-#### Signature
-
-```python
-def connect(self, function: Callable):
-    ...
-```
-
-### Delegate().disconnect
-
-[Show source in BBData.py:24](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L24)
-
-disconnect Disconnects function handle from delegate.
-
-#### Arguments
-
-- `function` *Callable* - The handle to be disconnected from the delegate.
-
-#### Signature
-
-```python
-def disconnect(self, function: Callable):
-    ...
-```
-
-### Delegate().emit
-
-[Show source in BBData.py:33](https://github.com/fieschkon/BlackBoxr-Datatypes/blob/main/BBData/BBData.py#L33)
-
-#### Signature
-
-```python
-def emit(self, *args):
-    ...
-```
+- [CollectionElement](#collectionelement)
 
 
