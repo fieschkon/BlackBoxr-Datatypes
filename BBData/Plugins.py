@@ -10,13 +10,14 @@ class PluginRole(Enum):
 
 class PluginBase():
 
-    def __init__(self, scope : ScopeManager, name = '', author = '', description = '', version = '', role = PluginRole.NONE) -> None:
-        self.scope = scope
-        self.name = name
-        self.author = author
-        self.description = description
-        self.version = version
-        self.role = role
+    name = ''
+    author = ''
+    description = ''
+    version = ''
+    role = PluginRole.NONE
+
+    def initialize(*args, **kwargs):
+        pass
 
     def run(self, *args, **kwargs):
         pass
