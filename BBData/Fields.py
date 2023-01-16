@@ -22,6 +22,7 @@ class Field():
     def __init__(self, fieldname : str = 'Default Field Name') -> None:
         self.name = fieldname
         self.type = FieldType.NONE
+        self.fieldChanged = Delegate()
 
     def toDict(self):
         d = {}
@@ -53,6 +54,7 @@ class Checks(Field):
     def setOption(self, index : int, state : bool):
         self.options[index]['state'] = state
         self.stateChanged.emit(index, self.options[index]['name'], self.options[index]['state'])
+        self.fieldChanged.emit(self)
 
     def getOption(self, index : int):
         return self.options[index]['name'], self.options[index]['state']
@@ -83,6 +85,7 @@ class Radio(Checks):
         for key in list(self.options.keys()):
             if key != args[0]:
                 self.options[key]['state'] = False
+        self.fieldChanged(self)
 
     def toDict(self):
         d = super().toDict()
@@ -98,14 +101,21 @@ class ShortText(Field):
     def __init__(self, fieldname: str = 'Default ShortText Name', defaultText = '') -> None:
         super().__init__(fieldname)
         self.type = FieldType.LINETEXT
-        self.text = defaultText
+        self.__text = defaultText
+
+    def setText(self, text):
+        self.__text = text
+        self.fieldChanged(self)
+
+    def text(self):
+        return self.__text
 
     def toDict(self):
         d = super().toDict()
-        d['text'] = self.text
+        d['text'] = self.__text
         return d
 
-class LongText(Field):
+class LongText(ShortText):
 
     def fromDict(indict: dict):
         return LongText(fieldname=indict['name'], defaultText=indict['text'])

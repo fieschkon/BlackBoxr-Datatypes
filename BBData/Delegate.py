@@ -22,7 +22,8 @@ class Delegate():
         Args:
             function (Callable): The handle to be disconnected from the delegate.
         '''
-        self.subscribers.remove(function)
+        if function in self.subscribers:
+            self.subscribers.remove(function)
 
     def emit(self, *args):
         for function in self.subscribers:

@@ -94,4 +94,8 @@ class TestGenericItems:
         # Create Template
         definition = generateDefinition()
         requirement = GenericElement(template=definition)
-        #print(requirement.fields)
+        assert requirement.fields == definition.fields
+
+        def2 = generateDefinition()
+        requirement.updateTemplate(def2)
+        assert requirement.fields == def2.fields

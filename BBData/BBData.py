@@ -269,10 +269,30 @@ class GenericElement(ItemDefinition):
             super().__init__(name, [])
         else:
             super().__init__(name, template.fields)
+        self.templateChanged = Delegate()
+        self.itemChanged = Delegate()
+        for field in self.fields:
+            field.fieldChanged.connect(self.__onFieldUpdate)
 
     def updateTemplate(self, template : ItemDefinition):
+        # Unsusbscribe
+        for field in self.fields:
+            field.fieldChanged.disconnect(self.__onFieldUpdate)
+
         self.template = template
         self.fields = copy.deepcopy(template.fields)
+        self.templateChanged.emit(self, template)
+
+        # Resubscribe
+        for field in self.fields:
+            field.fieldChanged.connect(self.__onFieldUpdate)
+
+    def __onFieldUpdate(self, args):
+        self.itemChanged.emit()
+
+    def toDict(self) -> dict:
+        d = super().toDict()
+        
 
 class ItemTypeCollection(CollectionElement):
     '''
