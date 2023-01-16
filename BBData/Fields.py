@@ -85,7 +85,7 @@ class Radio(Checks):
         for key in list(self.options.keys()):
             if key != args[0]:
                 self.options[key]['state'] = False
-        self.fieldChanged(self)
+        self.fieldChanged.emit(self)
 
     def toDict(self):
         d = super().toDict()
@@ -105,7 +105,7 @@ class ShortText(Field):
 
     def setText(self, text):
         self.__text = text
-        self.fieldChanged(self)
+        self.fieldChanged.emit(self)
 
     def text(self):
         return self.__text
