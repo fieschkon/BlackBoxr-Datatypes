@@ -21,11 +21,12 @@ class Field():
 
     def __init__(self, fieldname : str = 'Default Field Name') -> None:
         self.name = fieldname
+        self.type = FieldType.NONE
 
     def toDict(self):
         d = {}
         d['name'] = self.name
-        d['type'] = FieldType.NONE
+        d['type'] = self.type.value
         return copy.deepcopy(d)
 
     def __eq__(self, __o: object) -> bool:
@@ -36,12 +37,13 @@ class Field():
 class Checks(Field):
 
     def fromDict(indict: dict):
-        c = Checks([], fieldname = indict['name'])
-        c.options = indict['options']
+        c = Checks(indict['options'], fieldname = indict['name'])
         return c
 
     def __init__(self, options : list[tuple[int, str, bool]], fieldname : str = 'Default Checkbox Field') -> None:
         super().__init__(fieldname)
+        self.type = FieldType.CHECKS
+
         self.stateChanged = Delegate()
         if isinstance(options, dict):
             self.options = options
@@ -57,20 +59,18 @@ class Checks(Field):
 
     def toDict(self):
         d = super().toDict()
-        d['type'] = FieldType.CHECKS
         d['options'] = self.options
         return d
 
 class Radio(Checks):
 
     def fromDict(indict: dict):
-        c = Radio([], fieldname = indict['name'])
-        c.options = indict['options']
-        c.maxAllowed = indict['maxallowed']
+        c = Radio(indict['options'], maximumAllowedChecks=indict['maxallowed'], fieldname = indict['name'])
         return c
 
     def __init__(self, options: list[tuple[int, str, bool]], maximumAllowedChecks = 1 , fieldname: str = 'Default Checkbox Field') -> None:
         super().__init__(options, fieldname)
+        self.type = FieldType.RADIO
         if maximumAllowedChecks == -1:
             # Auto calculate allowed numbers
             self.maxAllowed = len([item for item in options if item[2]])
@@ -86,7 +86,6 @@ class Radio(Checks):
 
     def toDict(self):
         d = super().toDict()
-        d['type'] = FieldType.RADIO
         d['maxallowed'] = self.maxAllowed
         return d
 
@@ -98,23 +97,26 @@ class ShortText(Field):
 
     def __init__(self, fieldname: str = 'Default ShortText Name', defaultText = '') -> None:
         super().__init__(fieldname)
+        self.type = FieldType.LINETEXT
         self.text = defaultText
 
     def toDict(self):
         d = super().toDict()
-        d['type'] = FieldType.LINETEXT
         d['text'] = self.text
         return d
 
-class LongText(ShortText):
+class LongText(Field):
 
     def fromDict(indict: dict):
         return LongText(fieldname=indict['name'], defaultText=indict['text'])
 
     def __init__(self, fieldname: str = 'Default LongText Name', defaultText='') -> None:
-        super().__init__(fieldname, defaultText)
+        super().__init__(fieldname)
+        self.type = FieldType.LONGTEXT
+        self.text = defaultText
     
     def toDict(self):
         d = super().toDict()
-        d['type'] = FieldType.LONGTEXT
+        d['type'] = self.type.value
+        d['text'] = self.text
         return d

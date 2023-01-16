@@ -1,8 +1,10 @@
 from abc import abstractmethod
 import copy
 from datetime import datetime
+from types import NoneType
 from BBData.Delegate import Delegate
 from BBData.Fields import Checks, Field, FieldType, LongText, Radio, ShortText
+from BBData.utilities import first, getDuration
 from dictdiffer import diff
 import json
 from typing import Callable
@@ -188,20 +190,21 @@ class ItemDefinition(CollectionElement):
 
         e.name = inDict['name']
 
+        e.fields.clear()
+
         for element in inDict['fields']:
             match element['type']:
-                case FieldType.NONE:
-                    element = Field.fromDict(element)
-                case FieldType.LINETEXT:
-                    element = ShortText.fromDict(element)
-                case FieldType.LONGTEXT:
-                    element = LongText.fromDict(element)
-                case FieldType.RADIO:
-                    element = Radio.fromDict(element)
-                case FieldType.CHECKS:
-                    element = Checks.fromDict(element)
-            e.fields.append(element)
-
+                case FieldType.NONE.value:
+                    k = Field.fromDict(element)
+                case FieldType.LINETEXT.value:
+                    k = ShortText.fromDict(element)
+                case FieldType.LONGTEXT.value:
+                    k = LongText.fromDict(element)
+                case FieldType.RADIO.value:
+                    k = Radio.fromDict(element)
+                case FieldType.CHECKS.value:
+                    k = Checks.fromDict(element)
+            e.fields.append(k)
         return e
 
     def __init__(self, name : str = "Item Definition", fields : list[Field] = []) -> None:
@@ -225,7 +228,8 @@ class ItemDefinition(CollectionElement):
         '''
         based = super().toDict()
         based['name'] = self.name
-        based['fields'] = [d.toDict() for d in self.fields]     
+        based['fields'] = [d.toDict() for d in self.fields]    
+        
         return based
 
     def addField(self, field : Field):
@@ -257,6 +261,19 @@ class ItemDefinition(CollectionElement):
     def __repr__(self) -> str:
         return self.uuid
 
+
+class GenericElement(ItemDefinition):
+    def __init__(self, name: str = "Generic Element", template : ItemDefinition = None) -> None:
+        self.template = template
+        if isinstance(template, NoneType):
+            super().__init__(name, [])
+        else:
+            super().__init__(name, template.fields)
+
+    def updateTemplate(self, template : ItemDefinition):
+        self.template = template
+        self.fields = copy.deepcopy(template.fields)
+
 class ItemTypeCollection(CollectionElement):
     '''
     Collection of item types to be used inside systems and standards collections.
@@ -286,10 +303,18 @@ class ItemTypeCollection(CollectionElement):
 
         e.name = inDict['name']
 
-        mapping = [('requirements', e.requirements), ('designelements', e.designelements), ('testitems', e.testitems)]
-        for mp in mapping:
-            for itemtype in inDict[mp[0]]:
-                mp[1].append(ItemDefinition.fromDict(itemtype))
+        e.requirements.clear()
+        e.designelements.clear()
+        e.testitems.clear()
+
+        for itemtype in inDict['requirements']:
+            e.requirements.append(ItemDefinition.fromDict(itemtype))
+
+        for itemtype in inDict['designelements']:
+            e.designelements.append(ItemDefinition.fromDict(itemtype))
+
+        for itemtype in inDict['testitems']:
+            e.testitems.append(ItemDefinition.fromDict(itemtype))
         return e
 
     def __init__(self, name : str = "Item Definition Collection") -> None:
@@ -318,6 +343,7 @@ class ItemTypeCollection(CollectionElement):
             dict: output dict
         '''
         based = super().toDict()
+        based['uuid'] = self.uuid
         based['name'] = self.name
         based['requirements'] = [d.toDict() for d in self.requirements]
         based['designelements'] = [d.toDict() for d in self.designelements]    
@@ -387,6 +413,3 @@ class ItemTypeCollection(CollectionElement):
 class System(CollectionElement):
     def __init__(self) -> None:
         super().__init__()
-        self.DL = []
-        self.RL = []
-        self.TE = []

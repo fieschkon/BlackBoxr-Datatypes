@@ -1,7 +1,7 @@
 from random import randint
 import random
 import string
-from BBData.BBData import ItemDefinition, ItemTypeCollection
+from BBData.BBData import GenericElement, ItemDefinition, ItemTypeCollection
 from BBData.Fields import *
 
 
@@ -18,9 +18,9 @@ def randomString(length=5)->str:
   return ''.join(random.choices(string.ascii_letters, k=length))
 
 def generateDefinition():
-    c = ItemDefinition()
-    c.addFields([Checks(generateRandomFieldTuples()), Radio(generateRandomFieldTuples()), ShortText(randomString(), LongText(randomString(length=10)))])
+    c = ItemDefinition(fields=[Checks(generateRandomFieldTuples()), Radio(generateRandomFieldTuples()), ShortText(randomString(), LongText(randomString(length=10)))])
     return c
+
 class TestItemDefinition:
     def test_equality(self):
         commonFields = [Checks(generateRandomFieldTuples()), Radio(generateRandomFieldTuples()), ShortText(randomString(), LongText(randomString(length=10)))]
@@ -77,8 +77,21 @@ class TestItemDefinitionCollection:
 
     def test_serialization(self):
         col = ItemTypeCollection()
-        col.addRequirements([generateDefinition() for i in range(5)])
-        col.addDesignElements([generateDefinition() for i in range(5)])
-        col.addTestItems([generateDefinition() for i in range(5)])
+        checktest = Checks([(0, 'Option A', True), (1, 'Option B', False)])
+        radtest = Radio([(0, 'Option A', True), (1, 'Option B', False), (2, 'Option C', True)])
+        sttest = ShortText('ST', 'Bruh')
+        lttest = LongText('LT', 'Skaboop')
 
+        defi = ItemDefinition(name='Test Item Definition', fields=[checktest, radtest, sttest, lttest])
+
+        col.addRequirement(defi)
+
+        col.addDesignElement(defi)
         assert col == ItemTypeCollection.fromDict(col.toDict())
+
+class TestGenericItems:
+    def test_creation(self):
+        # Create Template
+        definition = generateDefinition()
+        requirement = GenericElement(template=definition)
+        #print(requirement.fields)
