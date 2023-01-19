@@ -8,7 +8,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name='BBData',
-    version='0.0.3',
+    version='0.0.4',
     author='Max Fieschko',
     author_email='fieschkom@msoe.edu',
     description='Datatypes used to communicate data between BlackBoxr and extensions.',

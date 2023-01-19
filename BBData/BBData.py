@@ -355,6 +355,9 @@ class ItemTypeCollection(CollectionElement):
         self.designelements : list[ItemDefinition] = []
         self.testitems : list[ItemDefinition] = []
 
+    def getAllItemTypes(self):
+        return self.requirements + self.designelements + self.testitems
+
     def toDict(self) -> dict:
         '''
         Serializes ItemTypeCollection to dict
