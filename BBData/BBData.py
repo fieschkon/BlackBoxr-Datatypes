@@ -1,20 +1,24 @@
 from abc import abstractmethod
 import copy
 from datetime import datetime
+from enum import Enum
+import os
 from types import NoneType
 from BBData.Delegate import Delegate
-from BBData.Fields import Checks, Field, FieldType, LongText, Radio, ShortText
-from BBData.utilities import first, getDuration
+from BBData import config
+from BBData.Fields import Checks, Field, FieldType, LongText, Radio, ShortText, parseField
+from BBData.FileSystem import Tree, TreeNode
+from BBData.utilities import currentTime, first, getDuration, getFilesWithExtension, loadJsonLike
 from dictdiffer import diff
 import json
-from typing import Callable
+from typing import Callable, Union
 import uuid
 import warnings
 
 
-class CollectionElement():
+class CollectionElement(TreeNode):
 
-    @staticmethod
+    
     def diff(elementA, elementB):
         '''
         Diff elements
@@ -28,7 +32,7 @@ class CollectionElement():
         '''
         return list(diff(elementA.toDict(), elementB.toDict()))
 
-    @staticmethod
+    
     def fromDict(inDict : dict):
         '''
         Creates Collection Element from dict
@@ -45,8 +49,8 @@ class CollectionElement():
         e.uuid = inDict['uuid']
         
         # Fields are used to denote public and private fields 
-        e.public = inDict['public']
-        e.private = inDict['private']
+        e.public = [parseField(serializedField) for serializedField in inDict['public']]
+        e.private = [parseField(serializedField) for serializedField in inDict['private']]
 
         # Time tracking 
         e.createDate = inDict['createDate']
@@ -54,7 +58,7 @@ class CollectionElement():
 
         return e
 
-    @staticmethod
+    
     def fromStr(inStr : str):
         '''
         Creates Collection Element from str
@@ -67,7 +71,7 @@ class CollectionElement():
         '''
         return CollectionElement.fromDict(json.loads(inStr))
 
-    @staticmethod
+    
     def copy(element):
         '''
         Create a copy of an element
@@ -82,44 +86,71 @@ class CollectionElement():
         e.uuid = str(uuid.uuid4())
         return copy.deepcopy(e)
 
-    def __init__(self) -> None:
+    def serialize(self):
+        pass
 
+    def __init__(self, tree, parent=None) -> None:
+        id = str(uuid.uuid4())
         # Identifiers 
-        self.uuid = str(uuid.uuid4())
+        self.uuid = id
+        super().__init__(id, tree, parent)
+
+
         
-        # Fields are used to denote public and private fields 
-        self.public = {}
-        self.private = {'tags' : []}
+        # Public fields are shown in views, private are only shown in panels and accessable by plugins.
+        self.public : list[Field] = []
+        self.private : list[Field] = []
 
         # Time tracking 
-        self.createDate = self.generateCreateTime()
+        self.createDate = currentTime()
         self.updateDate = self.createDate
 
         # Delegate
-        self.anyAttributeChanged = Delegate()
+        self.attributeChanged = Delegate()
 
-    def setPublicValue(self, key, value):
-        self.public[key] = value
-        self.anyAttributeChanged.emit('public', (key, value))
+    def addPublicField(self, field : Field):
+        self.public.append(field)
+        field.fieldChanged.connect(lambda changedField : self.attributeChanged.emit(self, changedField))
+        self.attributeChanged.emit(self, field)
 
-    def getPublicValue(self, key):
-        return self.public.get(key)
+    def addPublicFields(self, fields : list[Field]):
+        [self.addPublicField(field) for field in fields]
 
-    def getPrivateValue(self, key):
-        return self.private.get(key)
+    def addPrivateField(self, field : Field):
+        self.private.append(field)
+        field.fieldChanged.connect(lambda changedField : self.attributeChanged.emit(self, changedField))
+        self.attributeChanged.emit(self, field)
 
-    def setPrivateValue(self, key, value):
-        self.private[key] = value
-        self.anyAttributeChanged.emit('private', (key, value))
+    def addPrivateFields(self, fields : list[Field]):
+        [self.addPrivateField(field) for field in fields]
 
-    def generateCreateTime(self):
-        '''
-        Generate the current time
+    def removePublicField(self, index : Union[str, int]):
+        if isinstance(index, int):
+            target = self.public[index]
+        else:
+            target = [field for field in self.public if field.name == index][0]
+        target.fieldChanged.disconnect(lambda changedField : self.attributeChanged.emit(self, changedField))
+        self.public.remove(target)
 
-        Returns:
-            str: Current Time
-        '''
-        return datetime.now().strftime("%m/%d/%y %H:%M:%S")
+    def removePrivateField(self, index : Union[str, int]):
+        if isinstance(index, int):
+            target = self.private[index]
+        else:
+            target = [field for field in self.private if field.name == index][0]
+        target.fieldChanged.disconnect(lambda changedField : self.attributeChanged.emit(self, changedField))
+        self.private.remove(target)
+
+    def getPublicField(self, search : Union[str, int]):
+        if isinstance(search, int):
+            return self.public[search]
+        else:
+            return first([field for field in self.public if field.name == search])
+
+    def getPrivateField(self, search : Union[str, int]):
+        if isinstance(search, int):
+            return self.private[search]
+        else:
+            return first([field for field in self.private if field.name == search])
 
     def toDict(self) -> dict:
         '''
@@ -130,18 +161,11 @@ class CollectionElement():
         '''
         d = {}
         d['uuid'] = str(self.uuid)
-        d['public'] = self.public
-        d['private'] = self.private
+        d['public'] = [field.toDict() for field in self.public]
+        d['private'] = [field.toDict() for field in self.private]
         d['createDate'] = self.createDate
         d['updateDate'] = self.updateDate
         return d
-
-    def __setattr__(self, key, value):
-        if hasattr(self, key):
-            if key not in ['updateDate'] and value != self.__getattribute__(key):
-                self.updateDate = self.generateCreateTime()
-                self.anyAttributeChanged.emit(key, value)
-        super().__setattr__(key, value)
 
     def __repr__(self) -> str:
         return str(self.uuid)
@@ -160,11 +184,15 @@ class CollectionElement():
             return str(self) == __o
         else: return False
 
-class ItemDefinition(CollectionElement):
+    def updateUpdateTime(self):
+        self.updateDate = currentTime()
+
+class WorkItemDefinition(CollectionElement):
+    fileextension = f'{config.fileprefix}def'
     '''
     Defines an item to be displayed in panels and on the canvas. Contains fields that change how input is taken from the user.
     '''
-    @staticmethod
+    
     def fromDict(inDict : dict):
         '''
         Creates ItemDefinitionCollection from dict
@@ -175,14 +203,17 @@ class ItemDefinition(CollectionElement):
         Returns:
             ItemDefinitionCollection: Item Collection
         '''
-        e = ItemDefinition()
+        e = WorkItemDefinition()
 
         # Identifiers 
         e.uuid = inDict['uuid']
         
         # Fields are used to denote public and private fields 
-        e.public = inDict['public']
-        e.private = inDict['private']
+        e.public = [parseField(serializedField) for serializedField in inDict['public']]
+        e.private = [parseField(serializedField) for serializedField in inDict['private']]
+
+        e.downstream = inDict['downstream']
+        e.upstream = inDict['upstream']
 
         # Time tracking 
         e.createDate = inDict['createDate']
@@ -190,24 +221,12 @@ class ItemDefinition(CollectionElement):
 
         e.name = inDict['name']
 
-        e.fields.clear()
 
-        for element in inDict['fields']:
-            match element['type']:
-                case FieldType.NONE.value:
-                    k = Field.fromDict(element)
-                case FieldType.LINETEXT.value:
-                    k = ShortText.fromDict(element)
-                case FieldType.LONGTEXT.value:
-                    k = LongText.fromDict(element)
-                case FieldType.RADIO.value:
-                    k = Radio.fromDict(element)
-                case FieldType.CHECKS.value:
-                    k = Checks.fromDict(element)
-            e.fields.append(k)
         return e
 
-    def __init__(self, name : str = "Item Definition", fields : list[Field] = []) -> None:
+
+    def __init__(self, tree = None, parent=None, name : str = "Item Definition") -> None:
+        super().__init__(tree, parent)
         '''
         Initializes an Item Definition, to be used to display information in the canvas with various UI Elements
 
@@ -215,9 +234,52 @@ class ItemDefinition(CollectionElement):
             name (str, optional): Name of item. Defaults to "Item Definition".
             fields (list[Field], optional): Editable Fields. Defaults to [].
         '''
-        super().__init__()
         self.name = name
-        self.fields : list[Field] = fields
+
+        self.templateChanged = Delegate()
+        # For definitions, streams define the stream rules
+        self.downstream : list[str] = [] 
+        self.upstream : list[str] = []
+
+    def serialize(self):
+        path = os.path.join(Scope.currentWorkspace.getFullPath(Scope.currentWorkspace.getDefinitionPath(self)))
+        pass
+
+    def addDownstreamRule(self, definition, allow = True):
+        target = definition if isinstance(definition, WorkItemDefinition) else Scope.currentWorkspace.getDefinitionByUUID(definition)
+        if target.uuid in self.downstream:
+            return
+        if allow:
+            self.downstream.append(target.uuid)
+            target.addUpstreamRule(self)
+        else:
+            self.downstream.remove(target.uuid)
+            target.addUpstreamRule(self, False)
+
+    def addUpstreamRule(self, definition, allow = True):
+        target = definition if isinstance(definition, WorkItemDefinition) else Scope.currentWorkspace.getDefinitionByUUID(definition)
+        if target.uuid in self.upstream:
+            return
+        if allow:
+            self.upstream.append(target.uuid)
+            target.addDownstreamRule(self)
+        else:
+            self.upstream.remove(target.uuid)
+            target.addDownstreamRule(self, False)
+
+    def getDownstream(self) -> list:
+        return [Scope.currentWorkspace.getDefinitionByUUID(id) for id in self.downstream]
+
+    def getUpstream(self) -> list:
+        return [Scope.currentWorkspace.getDefinitionByUUID(id) for id in self.upstream]
+
+    def addPrivateField(self, field: Field):
+        super().addPrivateField(field)
+        self.templateChanged.emit(self)
+
+    def addPublicField(self, field: Field):
+        super().addPublicField(field)
+        self.templateChanged.emit(self)
 
     def toDict(self) -> dict:
         '''
@@ -228,30 +290,12 @@ class ItemDefinition(CollectionElement):
         '''
         based = super().toDict()
         based['name'] = self.name
-        based['fields'] = [d.toDict() for d in self.fields]    
-        
+        based['downstream'] = self.downstream
+        based['upstream'] = self.upstream
         return based
 
-    def addField(self, field : Field):
-        '''
-        Adds a field to the item definition
-
-        Args:
-            field (Field): Field to add
-        '''
-        self.fields.append(field)
-    
-    def addFields(self, fields : list[Field]):
-        '''
-        Adds a list of fields to the item definition.
-
-        Args:
-            fields (list[Field]): Fields to add
-        '''
-        self.fields += fields
-
     def __eq__(self, __o: object) -> bool:
-        if isinstance(__o, ItemDefinition):
+        if isinstance(__o, WorkItemDefinition):
             return __o.toDict() == self.toDict()
         return super().__eq__(__o)
 
@@ -262,60 +306,23 @@ class ItemDefinition(CollectionElement):
         return self.uuid
 
 
-class GenericElement(ItemDefinition):
-    def __init__(self, name: str = "Generic Element", template : ItemDefinition = None) -> None:
-        self.template = template
-        if isinstance(template, NoneType):
-            super().__init__(name, [])
-        else:
-            super().__init__(name, template.fields)
-        self.templateChanged = Delegate()
-        self.itemChanged = Delegate()
-        for field in self.fields:
-            field.fieldChanged.connect(self.__onFieldUpdate)
+class WorkItem(WorkItemDefinition):
+    fileextension = f'{config.fileprefix}item'
 
-    def updateTemplate(self, template : ItemDefinition):
-        # Unsusbscribe
-        for field in self.fields:
-            field.fieldChanged.disconnect(self.__onFieldUpdate)
-
-        self.template = template
-        self.fields = copy.deepcopy(template.fields)
-        self.templateChanged.emit(self, template)
-
-        # Resubscribe
-        for field in self.fields:
-            field.fieldChanged.connect(self.__onFieldUpdate)
-
-    def __onFieldUpdate(self, args):
-        self.itemChanged.emit()
-
-    def toDict(self) -> dict:
-        d = super().toDict()
-        
-
-class ItemTypeCollection(CollectionElement):
-    '''
-    Collection of item types to be used inside systems and standards collections.
-    '''
-    @staticmethod
+    
     def fromDict(inDict : dict):
-        '''
-        Create ItemTypeCollection from dictionary.
+        e = WorkItem(template=Scope.currentWorkspace.getDefinitionByUUID(inDict['template']))
 
-        Args:
-            inDict (dict): input dictionary
-
-        Returns:
-            ItemTypeCollection: ItemTypeCollection
-        '''
-        e = ItemTypeCollection(name=inDict['name'])
         # Identifiers 
         e.uuid = inDict['uuid']
+
+        # Streams
+        e.downstream = inDict['downstream']
+        e.upstream = inDict['upstream']
         
         # Fields are used to denote public and private fields 
-        e.public = inDict['public']
-        e.private = inDict['private']
+        e.public = [parseField(serializedField) for serializedField in inDict['public']]
+        e.private = [parseField(serializedField) for serializedField in inDict['private']]
 
         # Time tracking 
         e.createDate = inDict['createDate']
@@ -323,40 +330,154 @@ class ItemTypeCollection(CollectionElement):
 
         e.name = inDict['name']
 
-        e.requirements.clear()
-        e.designelements.clear()
-        e.testitems.clear()
-
-        for itemtype in inDict['requirements']:
-            e.requirements.append(ItemDefinition.fromDict(itemtype))
-
-        for itemtype in inDict['designelements']:
-            e.designelements.append(ItemDefinition.fromDict(itemtype))
-
-        for itemtype in inDict['testitems']:
-            e.testitems.append(ItemDefinition.fromDict(itemtype))
         return e
 
-    def __init__(self, name : str = "Item Definition Collection") -> None:
+    def __init__(self, tree = None, parent=None, name: str = "Item Definition", template : WorkItemDefinition = None) -> None:
+        super().__init__(tree, parent, name)
+        self.itemChanged = Delegate()
+        if template == None:
+            return
+        self.template = template
+        self.template.templateChanged.connect(self.populateFromTemplate)
+
+        self.populateFromTemplate(self.template)
+    
+    def serialize(self):
+        path = os.path.join(Scope.currentWorkspace.getFullPath(Scope.currentWorkspace.getWorkitemPath(self)))
+        pass
+
+
+    def addDownstreamRule(self, definition, allow=True):
+        pass
+    def addUpstreamRule(self, definition, allow=True):
+        pass
+
+    def getDownstream(self) -> list:
+        return [Scope.currentWorkspace.getWorkItemByUUID(id) for id in self.downstream]
+
+    def getUpstream(self) -> list:
+        return [Scope.currentWorkspace.getWorkItemByUUID(id) for id in self.upstream]
+
+    def addDownstream(self, item):
+        def commit():
+            self.downstream.append(target.uuid)
+            target.addUpstream(self)
+        target = item if isinstance(item, WorkItem) else Scope.currentWorkspace.getWorkItemByUUID(item)
+        if target.uuid in self.downstream:
+            return
+        if Scope.rulespolicy == Scope.RulesPolicy.STRICT:
+            if target.template.uuid in self.template.downstream:
+                commit()
+            return
+        elif Scope.rulespolicy == Scope.RulesPolicy.WARN:
+            if target.template.uuid not in self.template.downstream:
+                warnings.warn(f'Warning: Rule broken while connecting {target.uuid} downstream of {self.uuid}.')
+        commit()
+
+    def addUpstream(self, item):
+        def commit():
+            self.upstream.append(target.uuid)
+            target.addDownstream(self)
+        target = item if isinstance(item, WorkItem) else Scope.currentWorkspace.getWorkItemByUUID(item)
+        if target.uuid in self.upstream:
+            return
+        if Scope.rulespolicy == Scope.RulesPolicy.STRICT:
+            if target.template.uuid in self.template.upstream:
+                commit()
+            return
+        elif Scope.rulespolicy == Scope.RulesPolicy.WARN:
+            if target.template.uuid not in self.template.upstream:
+                warnings.warn(f'Warning: Rule broken while connecting {target.uuid} upstream of {self.uuid}.')
+        commit()
+
+
+    def populateFromTemplate(self, template : WorkItemDefinition):
+        currentpublicidentifiers = {field.name : field for field in self.public}
+        currentpublickeys = list(currentpublicidentifiers.keys())
+        for currentkey in currentpublickeys:
+            if currentkey not in [field.name for field in template.public]:
+                self.removePublicField(currentkey)
+        for publictemplatefield in template.public:
+            if publictemplatefield.name in currentpublickeys:
+                currentpublicidentifiers[publictemplatefield.name].reconcile(publictemplatefield)
+            else:
+                self.addPublicField(copy.deepcopy(publictemplatefield))
+            
+
+        currentprivateidentifiers = {field.name : field for field in self.private}
+        currentprivatekeys = list(currentprivateidentifiers.keys())
+        for currentkey in currentprivatekeys:
+            if currentkey not in [field.name for field in template.private]:
+                self.removePrivateField(currentkey)
+        for privatetemplatefield in template.private:
+            if privatetemplatefield.name in list(currentprivateidentifiers.keys()):
+                currentprivateidentifiers[privatetemplatefield.name].reconcile(privatetemplatefield)
+            else:
+                self.addPrivateField(copy.deepcopy(privatetemplatefield))
+
+
+    def toDict(self) -> dict:
+        d = super().toDict()
+        d['template'] = self.template.uuid
+        return d
+        
+
+class Document(TreeNode):
+    fileextension = f'{config.fileprefix}doc'
+    '''
+    Collection of item types to be used inside systems and standards collections.
+    '''
+    
+    def fromDict(inDict : dict):
         '''
-        Initializes a ItemTypeCollection with name.
+        Create Document from dictionary.
 
         Args:
-            name (str, optional): Name of the collection. Defaults to "Item Definition Collection".
+            inDict (dict): input dictionary
+
+        Returns:
+            Document: Document
         '''
-        super().__init__()
+        e = Document(name=inDict['name'])
+        # Identifiers 
+        e.uuid = inDict['uuid']
+        
+        # Time tracking 
+        e.createDate = inDict['createDate']
+        e.updateDate = inDict['updateDate']
+
+        e.name = inDict['name']
+
+        e.workItems = inDict['workItems']
+
+        return e
+
+    def __init__(self, name : str = "Item Collection", tree=None, parent=None) -> None:
+        id = str(uuid.uuid4())
+        super().__init__(id, tree, parent)
+        '''
+        Initializes a Document with name.
+
+        Args:
+            name (str, optional): Name of the collection. Defaults to "Item Collection".
+        '''
         self.name = name
+        
+        self.createDate = currentTime()
+        self.updateDate = currentTime()
 
-        self.requirementAdded = Delegate()
-        self.designelementAdded = Delegate()
-        self.testitemAdded = Delegate()
+        self.workItems : list[str] = []
+        
 
-        self.requirements : list[ItemDefinition] = []
-        self.designelements : list[ItemDefinition] = []
-        self.testitems : list[ItemDefinition] = []
+    def serialize(self):
+        path = os.path.join(Scope.currentWorkspace.getFullPath(Scope.currentWorkspace.getDocumentPath(self)))
+        print(f'bruh moment {path}')
+        if not os.path.exists(path):
+            os.makedirs(path)
 
-    def getAllItemTypes(self):
-        return self.requirements + self.designelements + self.testitems
+    def getWorkItems(self):
+        return [Scope.currentWorkspace.getWorkItemByUUID(workitem) for workitem in self.workItems]
+
 
     def toDict(self) -> dict:
         '''
@@ -368,71 +489,250 @@ class ItemTypeCollection(CollectionElement):
         based = super().toDict()
         based['uuid'] = self.uuid
         based['name'] = self.name
-        based['requirements'] = [d.toDict() for d in self.requirements]
-        based['designelements'] = [d.toDict() for d in self.designelements]    
-        based['testitems'] = [d.toDict() for d in self.testitems]    
+        based['createDate'] = self.createDate
+        based['updateDate'] = self.updateDate
+        based['workItems'] = self.workItems
         return based
 
-    def addRequirement(self, requirement : ItemDefinition):
-        '''
-        Adds a single requirement
 
-        Args:
-            requirement (ItemDefinition): Requirement type to add
-        '''
-        self.requirements.append(requirement)
-        self.requirementAdded.emit(requirement)
-    
-    def addRequirements(self, requirements : list[ItemDefinition]):
-        '''
-        Adds multiple requirements
+class Project(CollectionElement):
+    '''
+    The Project holds data for a project
 
-        Args:
-            requirements (list[ItemDefinition]): Requirement types to add
-        '''
-        for i in requirements:
-            self.addRequirement(i)
+    Returns:
+        _type_: _description_
+    '''
 
-    def addDesignElement(self, designelement : ItemDefinition):
-        '''
-        Adds a single design element definition
+    fileextension = f'{config.fileprefix}proj'
 
-        Args:
-            designelement (ItemDefinition): Design element to add
-        '''
-        self.designelements.append(designelement)
-        self.designelementAdded.emit(designelement)
-   
-    def addDesignElements(self, designelements : list[ItemDefinition]):
-        '''
-        Adds multiple design element definitions
+    def __init__(self, name = 'Default Project Name', tree = None, parent=None) -> None:
+        super().__init__(tree, parent)
+        self.name = name
+        
+        self.definitions : list[str] = []
+        self.workitems : list[str] = []
+        self.documents : list[str] = []
 
-        Args:
-            designelements (list[ItemDefinition]): Design elements to add
-        '''
-        for i in designelements:
-            self.addDesignElement(i)
+    def serialize(self):
+        path = os.path.join(Scope.currentWorkspace.getFullPath(Scope.currentWorkspace.getDocumentPath(self)))
+        if not os.path.exists(path):
+            os.makedirs(path)
 
-    def addTestItem(self, testitem : ItemDefinition):
-        '''
-        Adds a test item definition
+    def toDict(self) -> dict:
+        d = super().toDict()
+        d['name'] = self.name
+        d['definitions'] = self.definitions
+        d['workitems'] = self.workitems
+        d['documents'] = self.documents
+        return d
 
-        Args:
-            testitem (ItemDefinition): Test item
-        '''
-        self.testitems.append(testitem)
-        self.testitemAdded.emit(testitem)
+    def fromDict(inDict : dict):
+        e = Project()
 
-    def addTestItems(self, testitems : list[ItemDefinition]):
-        '''
-        Adds multiple test item definitions
+        # Identifiers 
+        e.uuid = inDict['uuid']
+        e.name = inDict['name']
+        
+        # Fields are used to denote public and private fields 
+        e.public = [parseField(serializedField) for serializedField in inDict['public']]
+        e.private = [parseField(serializedField) for serializedField in inDict['private']]
+        
+        e.definitions = inDict['definitions']
+        e.workitems = inDict['workitems']
+        e.documents = inDict['documents']
 
-        Args:
-            testitems (list[ItemDefinition]): Definitions to add
-        '''
-        for i in testitems:
-            self.addTestItem(i)
+        # Time tracking 
+        e.createDate = inDict['createDate']
+        e.updateDate = inDict['updateDate']
 
-class System(CollectionElement):
-    def __init__(self) -> None:
+        return e
+
+    def createWorkItemDefinition(self, name = 'Default Work Item Definition', parent = None):
+        if parent == None:
+            parent = self
+
+        definition = Scope.currentWorkspace.createNewWorkItemDefinition(name, parent)
+        self.definitions.append(definition.uuid)
+        return definition
+
+    def createWorkItem(self, name = None, template = None, parent = None):
+        if parent == None:
+            parent = self
+        workitem = Scope.currentWorkspace.createNewWorkItem(name = name, template = template, parent = parent)
+        self.workitems.append(workitem.uuid)
+        return workitem
+
+    def createNewDocument(self, name = 'Default Document', parent = None ):
+        if parent == None:
+            parent = self
+        doc = Scope.currentWorkspace.createNewDocument(name, parent)
+        self.documents.append(doc.uuid)
+        return doc
+
+class Workspace(Tree):
+
+    def __init__(self, directory : str) -> None:
         super().__init__()
+        self.root = directory
+
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        self.__definitions = {}
+        self.__projects = {}
+        self.__workitems = {}
+        self.__documents = {}
+        if directory == None:
+            return
+        self.discoverProjects(directory)
+        self.discoverDefinitions(directory)
+        self.discoverWorkItems(directory)
+        self.discoverDocuments(directory)
+
+    def getFullPath(self, relpath : str):
+        if relpath[0] == '\\':
+            relpath = relpath[1:]
+        return os.path.join(self.root, relpath)
+
+    # Discovery
+
+    def discoverDefinitions(self, dir : str):
+        # Get all definitions
+        for definitionpath in getFilesWithExtension([dir], extension=WorkItemDefinition.fileextension, recursive=True):
+            self.__definitions[os.path.basename(os.path.normpath(definitionpath))] = {
+                'path' : os.path.relpath(definitionpath, dir),
+                'item' : WorkItemDefinition.fromDict(loadJsonLike(definitionpath)) # Don't lazy load projects
+            }
+
+    def discoverDocuments(self, dir : str):
+        # Get All Documents
+        for documentpath in getFilesWithExtension([dir], extension=Document.fileextension, recursive=True):
+            self.__documents[os.path.basename(os.path.normpath(documentpath))] = {
+                'path' : os.path.relpath(documentpath, dir),
+                'item' : None
+            }
+
+    def discoverWorkItems(self, dir : str):
+        # Get All Work Items
+        for workitempath in getFilesWithExtension([dir], extension=WorkItem.fileextension, recursive=True):
+            self.__workitems[os.path.basename(os.path.normpath(workitempath))] = {
+                'path' : os.path.relpath(workitempath, dir),
+                'item' : None
+            }
+
+    def discoverProjects(self, dir : str):
+        # Get all projects
+        for projectpath in getFilesWithExtension([dir], extension=Project.fileextension, recursive=True):
+            self.__projects[os.path.basename(os.path.normpath(projectpath))] = {
+                'path' : os.path.relpath(projectpath, dir),
+                'item' : Project.fromDict(loadJsonLike(projectpath)) # Don't lazy load projects
+            }
+
+    # Getters/Lazy loader
+
+    def getWorkItemByUUID(self, uuid : str):
+        if isinstance( self.__workitems[uuid]['item'], NoneType):
+            self.__workitems[uuid]['item'] = WorkItem.fromDict(loadJsonLike(self.getFullPath(self.__workitems[uuid]['path'])))
+
+        return self.__workitems[uuid]['item']
+
+    def getProjectByUUID(self, uuid : str):
+        if isinstance( self.__projects[uuid]['item'], NoneType):
+            self.__projects[uuid]['item'] = Project.fromDict(loadJsonLike(self.getFullPath(self.__projects[uuid]['path'])))
+
+        return self.__projects[uuid]['item']
+
+    def getDefinitionByUUID(self, uuid : str):
+        if isinstance( self.__definitions[uuid]['item'], NoneType):
+            self.__definitions[uuid]['item'] = WorkItemDefinition.fromDict(loadJsonLike(self.getFullPath(self.__definitions[uuid]['path'])))
+
+        return self.__definitions[uuid]['item']
+
+    def getDocumentByUUID(self, uuid : str):
+        if isinstance( self.__documents[uuid]['item'], NoneType):
+            self.__documents[uuid]['item'] = Document.fromDict(loadJsonLike(self.getFullPath(self.__documents[uuid]['path'])))
+
+        return self.__documents[uuid]['item']
+
+    def getDocumentPath(self, document : Document):
+        return self.__documents[document.uuid]['path']
+
+    def getDefinitionPath(self, definition : WorkItemDefinition):
+        return self.__definitions[definition.uuid]['path']
+
+    def getWorkitemPath(self, workitem : WorkItem):
+        return self.__workitems[workitem.uuid]['path']
+
+    def getProjectPath(self, project : Project):
+        return self.__projects[project.uuid]['path']
+
+    # Item Creation
+    def createNewWorkItemDefinition(self, name = None, parent = None):
+        item = WorkItemDefinition(tree=Scope.currentWorkspace ,name = name, parent=parent)
+        self.addNode(item)
+        if parent == None:
+            path = os.sep
+        else:
+            path = parent.getPath()
+        self.__definitions[item.uuid] = {
+            'path' : os.path.join(path, item.uuid),
+            'item' : item
+        }
+        item.serialize()
+        return item
+
+    def createNewWorkItem(self, name = None, template = None, parent = None):
+        item = WorkItem(tree=Scope.currentWorkspace ,name = name, parent=parent, template=template)
+        self.addNode(item)
+        if parent == None:
+            path = os.sep
+        else:
+            path = parent.getPath()
+        self.__workitems[item.uuid] = {
+            'path' : os.path.join(path, item.uuid),
+            'item' : item
+        }
+        item.serialize()
+        return item
+    
+    def createNewDocument(self, name = None, parent : CollectionElement = None):
+        doc = Document(tree=Scope.currentWorkspace ,name = name, parent=parent)
+        self.addNode(doc)
+        if parent == None:
+            path = os.sep
+        else:
+            path = parent.getPath()
+        self.__documents[doc.uuid] = {
+            'path' : os.path.join(path, doc.uuid),
+            'item' : doc
+        }
+        doc.serialize()
+        return doc
+
+    def createNewProject(self, name = None, parent : CollectionElement = None):
+        doc = Project(tree=Scope.currentWorkspace ,name = name, parent=parent)
+        self.addNode(doc)
+        if parent == None:
+            path = os.sep
+        else:
+            path = parent.getPath()
+        self.__documents[doc.uuid] = {
+            'path' : os.path.join(path, doc.uuid),
+            'item' : doc
+        }
+        doc.serialize()
+        return doc
+
+class Scope:
+
+    class RulesPolicy(Enum):
+        STRICT = 0 # Completely disallow rule breaking
+        WARN = 1 # Throw a warning when a rule is broken
+        NONE = 2 # Allow rule breaking
+
+    currentWorkspace = None
+    rulespolicy = RulesPolicy.STRICT
+
+    def setCurrentWorkspaceFromDirectory(directory):
+        Scope.currentWorkspace = Workspace(directory)
+        return Scope.currentWorkspace

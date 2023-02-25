@@ -1,4 +1,6 @@
 from datetime import datetime
+import json
+import os
 
 def first(iterable, default=None):
   for item in iterable:
@@ -47,3 +49,38 @@ def getDuration(then, now = datetime.now(), interval = "default"):
         'seconds': int(seconds()),
         'default': totalDuration()
     }
+
+def currentTime():
+    '''
+    Generate the current time
+
+    Returns:
+        str: Current Time
+    '''
+    return datetime.now().strftime("%m/%d/%y %H:%M:%S")
+
+def getFilesWithExtension(paths : list, extension : str = '.json', recursive=False):
+  def listdirs(rootdir):
+    paths = []
+    for it in os.scandir(rootdir):
+        if it.is_dir():
+            paths.append(it.path)
+            paths += listdirs(it)
+    return paths
+
+  files = []
+  if recursive:
+    [paths.__iadd__(listdirs(root)) for root in paths]
+  for path in paths:
+    for file in os.listdir(path):
+      if file.endswith(extension):
+          files.append(os.path.join(path, file))
+  return files
+
+def loadJsonLike(path):
+  with open(path) as json_file:
+    return json.load(json_file)
+
+def saveJsonLike(dict, path):
+  with open(path, "w") as outfile:
+    json.dump(dict, outfile)

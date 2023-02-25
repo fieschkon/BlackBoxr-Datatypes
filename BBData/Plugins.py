@@ -1,6 +1,5 @@
 
 from enum import Enum
-from BBData.Scope import ScopeManager
 
 class PluginRole(Enum):
     NONE = 0
