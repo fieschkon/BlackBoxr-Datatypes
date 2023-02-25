@@ -1,10 +1,11 @@
+import os
 from random import randint
 import random
 import string
 from BBData.BBData import WorkItem, WorkItemDefinition, Scope
 from BBData.Fields import *
 
-Scope.setCurrentWorkspaceFromDirectory(None)
+Scope.setCurrentWorkspaceFromDirectory(os.path.join(os.getcwd(), f'Test{os.sep}TestProject'))
 
 def randomString(length=5)->str:
   return ''.join(random.choices(string.ascii_letters, k=length))
