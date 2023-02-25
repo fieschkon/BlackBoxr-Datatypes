@@ -9,10 +9,11 @@ class PluginRole(Enum):
 
 class PluginBase():
 
-    name = ''
-    author = ''
-    description = ''
-    version = ''
+    name : str = ''
+    author : str = ''
+    description : str = ''
+    version : str = ''
+    requires : list[str] = []
     role = PluginRole.NONE
 
     def initialize(*args, **kwargs):
