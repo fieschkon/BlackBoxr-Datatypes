@@ -2,8 +2,7 @@ import os
 from random import randint
 import random
 import string
-from BBData.BBData import WorkItem, WorkItemDefinition, Scope
-from BBData.Defaults import Definitions
+from BBData.BBData import Scope
 from BBData.Fields import *
 
 currentworkspace = Scope.setCurrentWorkspaceFromDirectory(os.path.join(os.getcwd(), 'ex'))
@@ -46,7 +45,6 @@ RequirementFields = [
 SystemRequirementDefinition.addPublicFields(RequirementFields)
 SubsystemRequirementDefinition.addPublicFields(RequirementFields)
 
-Scope.currentWorkspace.moveItem(SystemRequirements, SubSystemRequirements)
 '''
 Create Requirements
 '''
@@ -60,7 +58,8 @@ CapSize.getPublicField('Assigned To').setCurrent('Electrical Engineer')
 
 StartupTime.addDownstream(CapSize)
 
-#Scope.currentWorkspace.moveItem(SystemRequirements, HWFolder)
+ExampleProject.save()
+
 '''
 STANDARD EXAMPLE
 '''

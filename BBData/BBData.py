@@ -524,6 +524,12 @@ class Project(CollectionElement):
         self.workitems: list[str] = []
         self.documents: list[str] = []
 
+    def save(self):
+        self.serialize()
+        [Scope.currentWorkspace.getDefinitionByUUID(id).serialize() for id in self.definitions]
+        [Scope.currentWorkspace.getWorkItemByUUID(id).serialize() for id in self.workitems]
+        [Scope.currentWorkspace.getDocumentByUUID(id).serialize() for id in self.documents]
+
     def serialize(self):
         path = Scope.currentWorkspace.getFullPath(
             Scope.currentWorkspace.getDocumentPath(self))
@@ -587,6 +593,14 @@ class Project(CollectionElement):
         self.documents.append(doc.uuid)
         return doc
 
+    def getDocuments(self):
+        return [Scope.currentWorkspace.getDocumentByUUID(id) for id in self.documents]
+
+    def getWorkItems(self):
+        return [Scope.currentWorkspace.getWorkItemByUUID(id) for id in self.workitems]
+
+    def getDefinitions(self):
+        return [Scope.currentWorkspace.getDefinitionByUUID(id) for id in self.definitions]
 
 class Workspace(Tree):
 
@@ -624,7 +638,6 @@ class Workspace(Tree):
                 itemlookup['item'].parent = parent
                 item = itemlookup['item']
                 loc = itemlookup['path']
-                print(f'Calculated Path: {item.getPath()}\nStored: {loc}')
 
         dicts = [self.__projects, self.__documents]
         for dict in dicts:
@@ -636,7 +649,6 @@ class Workspace(Tree):
                 itemlookup['item'].parent = parent
                 item = itemlookup['item']
                 loc = itemlookup['path']
-                print(f'Calculated Path: {item.getPath()}\nStored: {loc}')
 
     def getFullPath(self, relpath: str):
         return f'{self.root}{os.sep}{relpath}'
@@ -712,7 +724,7 @@ class Workspace(Tree):
         return self.__projects[uuid]['item']
 
     def getProjects(self):
-        return [self.getProjectByUUID(id) for id in self.__projects]
+        return [self.getProjectByUUID(id) for id in list(self.__projects.keys())]
 
     def getDefinitionByUUID(self, uuid: str):
         if isinstance(self.__definitions[uuid]['item'], NoneType):
