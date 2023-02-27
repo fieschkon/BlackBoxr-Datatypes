@@ -37,6 +37,9 @@ class Field():
             return self.toDict() == __o.toDict()
         return False
 
+    def __str__(self) -> str:
+        return str(self.name)
+
     def reconcile(self, templatefield):
         self.name = templatefield.name
         if not isinstance(templatefield, type(self)):
@@ -60,6 +63,9 @@ class Enum(Field):
 
     def getCurrent(self):
         return self.currentItem
+
+    def __str__(self) -> str:
+        return f'{super().__str__()}\n\t{self.currentItem} / {str(self.options)}'
 
     def getIndexFromStr(self, option : str):
         return self.options.index(option)
@@ -96,6 +102,13 @@ class Checks(Field):
 
         self.stateChanged = Delegate()
         self.options = options
+
+    def __str__(self) -> str:
+        reppr = f'{super().__str__()}\n'
+        for key, value in self.options.items():
+            valuerep = 'x' if value else ' '
+            reppr += f'\t[{valuerep}] {key}'
+        return 
 
     def setOption(self, name : Union[str, int], state : bool):
         '''
@@ -195,6 +208,9 @@ class ShortText(Field):
         super().__init__(fieldname)
         self.type = FieldType.LINETEXT
         self.__text = defaultText
+
+    def __str__(self) -> str:
+        return f'{super().__str__()}\n\t{self.text()}'
 
     def setText(self, text):
         self.__text = text

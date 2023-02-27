@@ -17,6 +17,7 @@ class Tree():
             self.nodes.append(node)
 
     def getNode(self, id):
+        print(f'Getting {id}')
         return first([node.uuid for node in self.nodes if node.uuid == id])
 
 class TreeNode():
@@ -29,6 +30,7 @@ class TreeNode():
 
         
     def getPath(self):
+        return self.printable()
         if isinstance(self.parent, NoneType):
             return f'{os.sep}{self.uuid}'
         else:

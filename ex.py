@@ -3,6 +3,7 @@ from random import randint
 import random
 import string
 from BBData.BBData import WorkItem, WorkItemDefinition, Scope
+from BBData.Defaults import Definitions
 from BBData.Fields import *
 
 currentworkspace = Scope.setCurrentWorkspaceFromDirectory(os.path.join(os.getcwd(), 'ex'))
@@ -29,8 +30,8 @@ SubSystemRequirements = ExampleProject.createNewDocument('Sub-system Requirement
 Defining definitions
 '''
 # Make definitions and add them to the definitions folder
-SystemRequirementDefinition = ExampleProject.createWorkItemDefinition(parent=DefinitionsFolder)
-SubsystemRequirementDefinition = ExampleProject.createWorkItemDefinition(parent=DefinitionsFolder)
+SystemRequirementDefinition = ExampleProject.createWorkItemDefinition(name='System Requirement' ,parent=DefinitionsFolder)
+SubsystemRequirementDefinition = ExampleProject.createWorkItemDefinition(name='SubSystem Requirement' ,parent=DefinitionsFolder)
 
 # Set rule to allow subsystem type downstream of system
 SystemRequirementDefinition.addDownstreamRule(SubsystemRequirementDefinition)
@@ -45,6 +46,7 @@ RequirementFields = [
 SystemRequirementDefinition.addPublicFields(RequirementFields)
 SubsystemRequirementDefinition.addPublicFields(RequirementFields)
 
+Scope.currentWorkspace.moveItem(SystemRequirements, SubSystemRequirements)
 '''
 Create Requirements
 '''
@@ -57,6 +59,8 @@ CapSize.getPublicField('Requirement').setText('The regulator output shall have a
 CapSize.getPublicField('Assigned To').setCurrent('Electrical Engineer')
 
 StartupTime.addDownstream(CapSize)
+
+#Scope.currentWorkspace.moveItem(SystemRequirements, HWFolder)
 '''
 STANDARD EXAMPLE
 '''
@@ -66,3 +70,6 @@ iso_6469 = currentworkspace.createNewProject('ISO-6469', StandardsFolder)
 Substandard = iso_6469.createNewDocument('3')
 
 currentworkspace.print()
+
+'''for workitem in currentworkspace.getWorkItems():
+    print(workitem)'''
